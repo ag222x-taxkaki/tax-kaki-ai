@@ -1,63 +1,87 @@
 import express from "express";
-import OpenAI from "openai";
 
 const app = express();
 app.use(express.json());
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+// ======= Mock /ask route (for testing without API key) =======
+app.post("/ask", async (req, res) => {
+  const question = req.body.question || "No question provided";
+  // Simulate AI thinking delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  res.json({
+    answer: `📝 Mock answer for: "${question}". The real API response will appear here once your key is active.`
+  });
 });
 
+// ======= Homepage =======
 app.get("/", (req, res) => {
   res.send(`
     <html>
-      <body style="font-family: Arial; padding: 40px;">
+      <head>
+        <title>Tax Kaki AI</title>
+        <style>
+          body { font-family: Arial; padding: 40px; background: #f9f9f9; }
+          #q { width: 300px; padding: 8px; }
+          #askBtn { padding: 8px 12px; margin-left: 5px; }
+          .chat-bubble { 
+            background: #e0f7fa; 
+            padding: 10px; 
+            border-radius: 8px; 
+            margin: 10px 0;
+          }
+          #result { margin-top: 20px; }
+        </style>
+      </head>
+      <body>
         <h2>Tax Kaki AI Test Page</h2>
-        <input id="q" type="text" placeholder="Ask tax question" style="width: 300px;" />
-        <button onclick="ask()">Ask</button>
-        <pre id="result"></pre>
+        <input id="q" type="text" placeholder="Ask tax question" />
+        <button id="askBtn">Ask</button>
+        <div id="result"></div>
 
         <script>
-          async function ask() {
-            const question = document.getElementById("q").value;
-            const res = await fetch("/ask", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ question })
-            });
-            const data = await res.json();
-            document.getElementById("result").innerText = JSON.stringify(data, null, 2);
-          }
+          const btn = document.getElementById('askBtn');
+          const input = document.getElementById('q');
+          const resultDiv = document.getElementById('result');
+
+          btn.onclick = async () => {
+            const question = input.value.trim();
+            if (!question) return alert("Please enter a question!");
+
+            // Show loading
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+            bubble.innerText = '💭 Thinking...';
+            resultDiv.appendChild(bubble);
+
+            try {
+              const res = await fetch("/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question })
+              });
+              const data = await res.json();
+
+              bubble.innerText = `🤖 ${data.answer}`;
+              input.value = "";
+            } catch (err) {
+              bubble.innerText = `⚠️ Error: ${err.message}`;
+            }
+
+            // Scroll to bottom
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+          };
         </script>
       </body>
     </html>
   `);
 });
 
+// ======= Test route =======
 app.get("/test", (req, res) => {
   res.send("Test route working");
 });
 
-app.post("/ask", async (req, res) => {
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "user", content: req.body.question }
-      ]
-    });
-
-    res.json({
-      answer: completion.choices[0].message.content
-    });
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
+// ======= Start server =======
 const PORT = process.env.PORT || 10000;
-
-app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
-});
+app.listen(PORT, () => console.log("Server running on port", PORT));
