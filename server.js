@@ -1,15 +1,11 @@
-const express = require("express");
-const cors = require("cors");
-require("dotenv").config();
-
-const OpenAI = require("openai");
+import express from "express";
+import OpenAI from "openai";
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 app.get("/", (req, res) => {
@@ -18,34 +14,37 @@ app.get("/", (req, res) => {
 
 app.post("/ask", async (req, res) => {
   try {
-    const { question } = req.body;
+    const question = req.body.question;
 
-    const response = await openai.chat.completions.create({
+    if (!question) {
+      return res.status(400).json({ error: "Question is required" });
+    }
+
+    const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are Tax Kaki AI, a helpful tax assistant."
+          content: "You are Tax Kaki AI, an expert Indian tax advisor. Give clear, correct answers."
         },
         {
           role: "user",
           content: question
         }
-      ],
+      ]
     });
 
     res.json({
-      answer: response.choices[0].message.content,
+      answer: completion.choices[0].message.content
     });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Something went wrong" });
+    res.status(500).json({ error: error.message });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
