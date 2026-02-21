@@ -45,6 +45,9 @@ app.post("/ask", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
+app.get('/test', (req, res) => {
+  res.send("Test route working");
+});
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
