@@ -1,0 +1,15 @@
+{
+  "name": "tax-kaki-ai",
+  "version": "1.0.0",
+  "description": "Tax Kaki AI backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "openai": "^4.56.0"
+  }
+}
