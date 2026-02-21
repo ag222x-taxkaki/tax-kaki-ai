@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 app.get("/", (req, res) => {
@@ -17,29 +17,33 @@ app.get("/test", (req, res) => {
 });
 
 app.post("/ask", async (req, res) => {
+  try {
+    console.log("Received question:", req.body.question);
 
-  const question = req.body.question;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: req.body.question,
+        },
+      ],
+    });
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: "You are Tax Kaki AI, an expert Indian tax assistant helping users with income tax, capital gains, deductions, and compliance."
-      },
-      {
-        role: "user",
-        content: question
-      }
-    ]
-  });
+    res.json({
+      answer: completion.choices[0].message.content,
+    });
 
-  res.json({
-    answer: response.choices[0].message.content
-  });
-
+  } catch (error) {
+    console.error("ERROR:", error);
+    res.status(500).json({
+      error: error.message,
+    });
+  }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
 });
