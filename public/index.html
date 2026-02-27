@@ -1,52 +1,78 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tax Kaki AI Chat</title>
+  <meta charset="UTF-8">
+  <title>Tax Kaki AI – Your Personal AI Tax Advisor</title>
   <style>
-    body { font-family: Arial; max-width: 500px; margin: 40px auto; }
-    #chat { border: 1px solid #ccc; min-height: 250px; padding: 12px; margin-bottom: 16px; }
-    .user { color: blue; margin: 4px 0; }
-    .bot { color: green; margin: 4px 0; }
-    input, button { font-size: 16px; padding: 6px; }
+    body { background: #f5f7fb; font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 0; }
+    .container { max-width: 540px; margin: 32px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(32,38,45,0.07); overflow: hidden; }
+    .header { background: #002b5c; color: #fff; padding: 32px 32px 18px 32px; border-radius: 0 0 36px 36px/0 0 12px 12px; }
+    .header h1 { padding: 0; margin: 0 0 6px 0; font-size: 2em; letter-spacing: 0.5px; }
+    .header p { font-size: 1em; margin: 0; color: #d3e4fc; }
+    #chat { background: #f7fafd; min-height: 340px; max-height: 430px; overflow-y: auto; padding: 28px 18px 18px 18px; }
+    .msg { display: flex; gap: 8px; margin-bottom: 10px; }
+    .ai { background: #eaf3ff; color: #143b6f; border-radius: 0 16px 16px 16px; align-self: flex-start; }
+    .user { background: #92b8e6; color: #fff; border-radius: 16px 0 16px 16px; align-self: flex-end; }
+    .ai, .user { padding: 10px 14px; max-width: 80%; word-break: break-word; font-size: 1em; }
+    .inputbar { display: flex; border-top: 1px solid #e7eaf3; background: #f5f7fb; padding: 14px 12px; }
+    .inputbar input { flex: 1; border-radius: 8px; border: 1px solid #ced6e5; padding: 10px 12px; font-size: 1em; outline: none; }
+    .inputbar button { background: #002b5c; color: #fff; border: none; border-radius: 8px; margin-left: 8px; padding: 10px 18px; font-size: 1em; cursor: pointer; transition: background 0.2s;}
+    .inputbar button:hover { background: #06409c; }
+    @media (max-width: 670px) {.container { max-width: 100vw; margin: 0; border-radius: 0; }}
   </style>
 </head>
 <body>
-  <h2>Tax Kaki AI</h2>
-  <div id="chat">
-    <div style="color:#888; font-size:14px;">Ask your Indian tax question below.</div>
+  <div class="container">
+    <div class="header">
+      <h1>Tax Kaki AI</h1>
+      <p>Your Personal AI Tax Advisor for Defence Personnel</p>
+    </div>
+    <div id="chat">
+      <div style="color:#789; font-size:15px; margin-bottom:17px;">Ask any Indian tax question below. Your conversation is always here when you return.</div>
+    </div>
+    <form class="inputbar" onsubmit="event.preventDefault(); ask();">
+      <input id="q" autocomplete="off" placeholder="Type your tax question..." />
+      <button type="submit">Ask</button>
+    </form>
   </div>
-  <input id="q" type="text" placeholder="Type your tax question..." style="width:75%;">
-  <button onclick="ask()">Ask</button>
-
   <script>
-    const chat = document.getElementById('chat');
+    // Simple "persistent chat" in browser. Stores conversation in localStorage (until page/tab is closed or refreshed)
+    const chatDiv = document.getElementById('chat');
+    let chatHistory = JSON.parse(localStorage.getItem('taxkaki-chat')) || [];
+
+    function renderChat() {
+      chatDiv.innerHTML = '<div style="color:#789; font-size:15px; margin-bottom:17px;">Ask any Indian tax question below. Your conversation is always here when you return.</div>';
+      for(const m of chatHistory) {
+        chatDiv.innerHTML += `<div class="msg ${m.role}">${m.role==="user"?'<b>You:</b> ':'<b>AI:</b> '}<span>${m.content}</span></div>`;
+      }
+      chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+    renderChat();
+
     async function ask() {
       const input = document.getElementById('q');
       const question = input.value.trim();
       if (!question) return;
-      chat.innerHTML += `<div class='user'><b>You:</b> ${question}</div>`;
       input.value = '';
-      chat.innerHTML += `<div class='bot'><em>AI is thinking...</em></div>`;
-      chat.scrollTop = chat.scrollHeight;
-
+      chatHistory.push({role: 'user', content: question});
+      renderChat();
+      chatHistory.push({role:'ai', content:'<i>Thinking...</i>'});
+      renderChat();
       try {
         const res = await fetch('/ask', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: {'Content-Type':'application/json'},
           body: JSON.stringify({question})
         });
         const data = await res.json();
-        // Remove "AI is thinking..." line
-        const bots = document.querySelectorAll('.bot');
-        bots[bots.length-1].remove();
-        if(data.answer){
-          chat.innerHTML += `<div class='bot'><b>AI:</b> ${data.answer}</div>`;
-        } else {
-          chat.innerHTML += "<div class='bot'><b>AI:</b> Sorry, no answer found.</div>";
-        }
-        chat.scrollTop = chat.scrollHeight;
-      } catch (e) {
-        chat.innerHTML += `<div class='bot'><b>AI(error):</b> Failed to connect server.</div>`;
+        chatHistory.pop(); // Remove 'Thinking...'
+        chatHistory.push({role:'ai', content: data.answer || "Sorry, no answer right now."});
+        localStorage.setItem('taxkaki-chat', JSON.stringify(chatHistory));
+        renderChat();
+      } catch(e) {
+        chatHistory.pop();
+        chatHistory.push({role:'ai', content:'<span style="color:red">Server error. Please try again.</span>'});
+        renderChat();
       }
     }
   </script>
