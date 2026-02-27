@@ -33,8 +33,11 @@ if(!localStorage.getItem("taxkaki-pan")){
       <h1>Tax Kaki AI</h1>
       <p>Your Personal AI Tax Advisor for Defence Personnel</p>
     </div>
-    <div style="text-align:right; color:#276; font-size:15px; padding:5px 20px 0 0;">
+   <div style="text-align:right; color:#276; font-size:15px; padding:5px 20px 0 0;">
   Logged in as PAN: <span id="pan-label"></span>
+  <button onclick="logout()" style="background:#b42531; color:white; border:none; border-radius:7px; padding:5px 15px; font-size:0.95em; margin-left:12px; cursor:pointer;">
+    Logout
+  </button>
 </div>
     <div id="chat">
       <div style="color:#789; font-size:15px; margin-bottom:17px;">Ask any Indian tax question below. Your conversation is always here when you return.</div>
