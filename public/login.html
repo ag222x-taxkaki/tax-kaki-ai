@@ -30,14 +30,20 @@
       const pan = document.getElementById('pan').value.toUpperCase().trim();
       const pin = document.getElementById('pin').value.trim();
       const msg = document.getElementById('msg');
-      // For demo: Accept PAN 'ABCDE1234F' and PIN '1234' only 
-      if (pan === "ABCDE1234F" && pin === "1234") {
-        // Save to browser/session (simulate login)
-        localStorage.setItem("taxkaki-pan", pan);
-        window.location.href = "index.html";
-      } else {
-        msg.textContent = "Invalid PAN or PIN. Please try again.";
-      }
+     // Allow login for either PAN + PIN combo (for demo/testing)
+const allowedCombos = [
+  { pan: "ABCDE1234F", pin: "1234" },
+  { pan: "PQRSX5678G", pin: "5678" }, // Your NEW test PAN + PIN
+  // Add more combos here as needed
+];
+
+const match = allowedCombos.find(u => u.pan === pan && u.pin === pin);
+if (match) {
+  localStorage.setItem("taxkaki-pan", pan);
+  window.location.href = "index.html";
+} else {
+  msg.textContent = "Invalid PAN or PIN. Please try again.";
+}
     }
   </script>
 </body>
