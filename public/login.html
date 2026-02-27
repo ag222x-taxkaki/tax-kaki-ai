@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tax Kaki AI Login</title>
+  <style>
+    body { background: #f5f7fb; font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 0;}
+    .container { max-width: 350px; margin: 70px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(32,38,45,.07); padding: 38px 30px; }
+    h2 { color: #002b5c; margin-bottom: 18px; }
+    label { display: block; margin: 10px 0 5px; color: #133b6f;}
+    input { width: 100%; font-size: 1em; padding: 10px 11px; margin-bottom: 18px; border-radius: 6px; border: 1px solid #dce2ec; background: #f4f6fa;}
+    button { width: 100%; background: #002b5c; color: #fff; border: none; border-radius: 8px; padding: 13px; font-size: 1.1em; cursor: pointer;}
+    .msg { text-align: center; color: #952222; margin-bottom: 13px;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Access Tax Kaki AI</h2>
+    <form id="loginform" onsubmit="event.preventDefault(); doLogin();">
+      <label for="pan">Enter your PAN</label>
+      <input id="pan" maxlength="10" autocomplete="off" placeholder="ABCDE1234F" required>
+      <label for="pin">Enter 4-digit PIN</label>
+      <input id="pin" maxlength="4" type="password" pattern="[0-9]{4}" autocomplete="off" required>
+      <div class="msg" id="msg"></div>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+  <script>
+    function doLogin() {
+      const pan = document.getElementById('pan').value.toUpperCase().trim();
+      const pin = document.getElementById('pin').value.trim();
+      const msg = document.getElementById('msg');
+      // For demo: Accept PAN 'ABCDE1234F' and PIN '1234' only 
+      if (pan === "ABCDE1234F" && pin === "1234") {
+        // Save to browser/session (simulate login)
+        localStorage.setItem("taxkaki-pan", pan);
+        window.location.href = "index.html";
+      } else {
+        msg.textContent = "Invalid PAN or PIN. Please try again.";
+      }
+    }
+  </script>
+</body>
+</html>
