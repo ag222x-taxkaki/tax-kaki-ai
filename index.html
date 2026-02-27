@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tax Kaki AI Chat</title>
+  <style>
+    body { font-family: Arial; max-width: 500px; margin: 40px auto; }
+    #chat { border: 1px solid #ccc; min-height: 250px; padding: 12px; margin-bottom: 16px; }
+    .user { color: blue; margin: 4px 0; }
+    .bot { color: green; margin: 4px 0; }
+    input, button { font-size: 16px; padding: 6px; }
+  </style>
+</head>
+<body>
+  <h2>Tax Kaki AI</h2>
+  <div id="chat">
+    <div style="color:#888; font-size:14px;">Ask your Indian tax question below.</div>
+  </div>
+  <input id="q" type="text" placeholder="Type your tax question..." style="width:75%;">
+  <button onclick="ask()">Ask</button>
+
+  <script>
+    const chat = document.getElementById('chat');
+    async function ask() {
+      const input = document.getElementById('q');
+      const question = input.value.trim();
+      if (!question) return;
+      chat.innerHTML += `<div class='user'><b>You:</b> ${question}</div>`;
+      input.value = '';
+      chat.innerHTML += `<div class='bot'><em>AI is thinking...</em></div>`;
+      chat.scrollTop = chat.scrollHeight;
+
+      try {
+        const res = await fetch('/ask', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question})
+        });
+        const data = await res.json();
+        // Remove "AI is thinking..." line
+        const bots = document.querySelectorAll('.bot');
+        bots[bots.length-1].remove();
+        if(data.answer){
+          chat.innerHTML += `<div class='bot'><b>AI:</b> ${data.answer}</div>`;
+        } else {
+          chat.innerHTML += "<div class='bot'><b>AI:</b> Sorry, no answer found.</div>";
+        }
+        chat.scrollTop = chat.scrollHeight;
+      } catch (e) {
+        chat.innerHTML += `<div class='bot'><b>AI(error):</b> Failed to connect server.</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
