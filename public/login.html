@@ -4,13 +4,74 @@
   <meta charset="UTF-8">
   <title>Tax Kaki AI Login</title>
   <style>
-    body { background: #f5f7fb; font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 0;}
-    .container { max-width: 350px; margin: 70px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(32,38,45,.07); padding: 38px 30px; }
-    h2 { color: #002b5c; margin-bottom: 18px; }
-    label { display: block; margin: 10px 0 5px; color: #133b6f;}
-    input { width: 100%; font-size: 1em; padding: 10px 11px; margin-bottom: 18px; border-radius: 6px; border: 1px solid #dce2ec; background: #f4f6fa;}
-    button { width: 100%; background: #002b5c; color: #fff; border: none; border-radius: 8px; padding: 13px; font-size: 1.1em; cursor: pointer;}
-    .msg { text-align: center; color: #952222; margin-bottom: 13px;}
+    body { 
+      background: #f5f7fb; 
+      font-family: "Segoe UI", Arial, sans-serif; 
+      margin: 0; 
+      padding: 0;
+    }
+    .container { 
+      max-width: 350px; 
+      margin: 70px auto; 
+      background: #fff; 
+      border-radius: 12px; 
+      box-shadow: 0 8px 24px rgba(32,38,45,.07); 
+      padding: 38px 30px; 
+    }
+    h2 { 
+      color: #002b5c; 
+      margin-bottom: 18px; 
+      text-align: center;
+    }
+    label { 
+      display: block; 
+      margin: 10px 0 5px; 
+      color: #133b6f;
+      font-weight: 500;
+    }
+    input { 
+      width: 100%; 
+      font-size: 1em; 
+      padding: 10px 11px; 
+      margin-bottom: 18px; 
+      border-radius: 6px; 
+      border: 1px solid #dce2ec; 
+      background: #f4f6fa;
+      box-sizing: border-box;
+    }
+    input:focus {
+      outline: none;
+      border-color: #002b5c;
+      background: #fff;
+    }
+    button { 
+      width: 100%; 
+      background: #002b5c; 
+      color: #fff; 
+      border: none; 
+      border-radius: 8px; 
+      padding: 13px; 
+      font-size: 1.1em; 
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #004080;
+    }
+    button:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+    }
+    .msg { 
+      text-align: center; 
+      color: #952222; 
+      margin-bottom: 13px;
+      min-height: 20px;
+      font-size: 0.9em;
+    }
+    .msg.success {
+      color: #059669;
+    }
   </style>
 </head>
 <body>
@@ -18,33 +79,107 @@
     <h2>Access Tax Kaki AI</h2>
     <form id="loginform" onsubmit="event.preventDefault(); doLogin();">
       <label for="pan">Enter your PAN</label>
-      <input id="pan" maxlength="10" autocomplete="off" placeholder="ABCDE1234F" required>
+      <input 
+        id="pan" 
+        maxlength="10" 
+        autocomplete="off" 
+        placeholder="ABCDE1234F" 
+        required
+      >
+      
       <label for="pin">Enter 4-digit PIN</label>
-      <input id="pin" maxlength="4" type="password" pattern="[0-9]{4}" autocomplete="off" required>
+      <input 
+        id="pin" 
+        maxlength="4" 
+        type="password" 
+        pattern="[0-9]{4}" 
+        autocomplete="off" 
+        placeholder="****"
+        required
+      >
+      
       <div class="msg" id="msg"></div>
-      <button type="submit">Login</button>
+      <button type="submit" id="loginBtn">Login</button>
     </form>
   </div>
+
   <script>
-    function doLogin() {
-      const pan = document.getElementById('pan').value.toUpperCase().trim();
+    async function doLogin() {
+      const pan = document.getElementById('pan').value.trim().toUpperCase();
       const pin = document.getElementById('pin').value.trim();
       const msg = document.getElementById('msg');
-     // Allow login for either PAN + PIN combo (for demo/testing)
-const allowedCombos = [
-  { pan: "ABCDE1234F", pin: "1234" },
-  { pan: "PQRSX5678G", pin: "5678" }, // Your NEW test PAN + PIN
-  // Add more combos here as needed
-];
+      const loginBtn = document.getElementById('loginBtn');
 
-const match = allowedCombos.find(u => u.pan === pan && u.pin === pin);
-if (match) {
-  localStorage.setItem("taxkaki-pan", pan);
-  window.location.href = "index.html";
-} else {
-  msg.textContent = "Invalid PAN or PIN. Please try again.";
-}
+      // Basic validation
+      if (!pan || !pin) {
+        msg.textContent = "Please enter both PAN and PIN";
+        msg.className = "msg";
+        return;
+      }
+
+      if (pan.length !== 10) {
+        msg.textContent = "PAN must be 10 characters";
+        msg.className = "msg";
+        return;
+      }
+
+      if (pin.length !== 4) {
+        msg.textContent = "PIN must be 4 digits";
+        msg.className = "msg";
+        return;
+      }
+
+      // Show loading state
+      msg.textContent = "Logging in...";
+      msg.className = "msg";
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Please wait...";
+
+      try {
+        // Call backend /login endpoint
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pan, pin })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === "ok") {
+          // Login successful
+          msg.textContent = "Login successful! Redirecting...";
+          msg.className = "msg success";
+          
+          // Save PAN to localStorage
+          localStorage.setItem("taxkaki-pan", pan);
+          
+          // Redirect to main page
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 500);
+        } else {
+          // Login failed - show error from server
+          msg.textContent = data.error || "Invalid credentials";
+          msg.className = "msg";
+          loginBtn.disabled = false;
+          loginBtn.textContent = "Login";
+        }
+      } catch (error) {
+        // Network or server error
+        console.error('Login error:', error);
+        msg.textContent = "Connection error. Please try again.";
+        msg.className = "msg";
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Login";
+      }
     }
+
+    // Allow pressing Enter to submit
+    document.getElementById('pin').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        doLogin();
+      }
+    });
   </script>
 </body>
 </html>
