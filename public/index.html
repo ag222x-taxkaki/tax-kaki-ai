@@ -42,45 +42,52 @@ if(!localStorage.getItem("taxkaki-pan")){
     </form>
   </div>
   <script>
-    // Simple "persistent chat" in browser. Stores conversation in localStorage (until page/tab is closed or refreshed)
-    const chatDiv = document.getElementById('chat');
-    let chatHistory = JSON.parse(localStorage.getItem('taxkaki-chat')) || [];
+  // Get PAN from login (redirect if not logged in)
+  const pan = localStorage.getItem("taxkaki-pan");
+  if (!pan) window.location.href = "login.html";
 
-    function renderChat() {
-      chatDiv.innerHTML = '<div style="color:#789; font-size:15px; margin-bottom:17px;">Ask any Indian tax question below. Your conversation is always here when you return.</div>';
-      for(const m of chatHistory) {
-        chatDiv.innerHTML += `<div class="msg ${m.role}">${m.role==="user"?'<b>You:</b> ':'<b>AI:</b> '}<span>${m.content}</span></div>`;
-      }
-      chatDiv.scrollTop = chatDiv.scrollHeight;
+  // All messages for this PAN are stored under "taxkaki-chat-<PAN>"
+  function getChatKey(){ return "taxkaki-chat-" + pan; }
+
+  const chatDiv = document.getElementById('chat');
+  let chatHistory = JSON.parse(localStorage.getItem(getChatKey())) || [];
+
+  function renderChat() {
+    chatDiv.innerHTML = '<div style="color:#789; font-size:15px; margin-bottom:17px;">Ask any Indian tax question below. Your conversation is always here when you return.</div>';
+    for(const m of chatHistory) {
+      chatDiv.innerHTML += `<div class="msg ${m.role}">${m.role==="user"?'<b>You:</b> ':'<b>AI:</b> '}<span>${m.content}</span></div>`;
     }
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+  }
+  renderChat();
+
+  async function ask() {
+    const input = document.getElementById('q');
+    const question = input.value.trim();
+    if (!question) return;
+    input.value = '';
+    chatHistory.push({role: 'user', content: question});
     renderChat();
-
-    async function ask() {
-      const input = document.getElementById('q');
-      const question = input.value.trim();
-      if (!question) return;
-      input.value = '';
-      chatHistory.push({role: 'user', content: question});
+    chatHistory.push({role:'ai', content:'<i>Thinking...</i>'});
+    renderChat();
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({question})
+      });
+      const data = await res.json();
+      chatHistory.pop(); // Remove 'Thinking...'
+      chatHistory.push({role:'ai', content: data.answer || "Sorry, no answer right now."});
+      // Save chat using PAN-specific key!
+      localStorage.setItem(getChatKey(), JSON.stringify(chatHistory));
       renderChat();
-      chatHistory.push({role:'ai', content:'<i>Thinking...</i>'});
+    } catch(e) {
+      chatHistory.pop();
+      chatHistory.push({role:'ai', content:'<span style="color:red">Server error. Please try again.</span>'});
       renderChat();
-      try {
-        const res = await fetch('/ask', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({question})
-        });
-        const data = await res.json();
-        chatHistory.pop(); // Remove 'Thinking...'
-        chatHistory.push({role:'ai', content: data.answer || "Sorry, no answer right now."});
-        localStorage.setItem('taxkaki-chat', JSON.stringify(chatHistory));
-        renderChat();
-      } catch(e) {
-        chatHistory.pop();
-        chatHistory.push({role:'ai', content:'<span style="color:red">Server error. Please try again.</span>'});
-        renderChat();
-      }
     }
-  </script>
+  }
+</script>
 </body>
 </html>
