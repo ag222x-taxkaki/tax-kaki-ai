@@ -11,16 +11,16 @@
       padding: 0;
     }
     .container { 
-      max-width: 350px; 
+      max-width: 370px; 
       margin: 70px auto; 
       background: #fff; 
       border-radius: 12px; 
       box-shadow: 0 8px 24px rgba(32,38,45,.07); 
-      padding: 38px 30px; 
+      padding: 38px 30px 28px 30px;
     }
     h2 { 
       color: #002b5c; 
-      margin-bottom: 18px; 
+      margin-bottom: 20px; 
       text-align: center;
     }
     label { 
@@ -44,16 +44,22 @@
       border-color: #002b5c;
       background: #fff;
     }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
     button { 
-      width: 100%; 
+      flex: 1;
       background: #002b5c; 
       color: #fff; 
       border: none; 
       border-radius: 8px; 
-      padding: 13px; 
-      font-size: 1.1em; 
+      padding: 13px 0; 
+      font-size: 1.08em; 
       cursor: pointer;
       transition: background 0.3s;
+      font-weight: 500;
     }
     button:hover {
       background: #004080;
@@ -62,12 +68,18 @@
       background: #6b7280;
       cursor: not-allowed;
     }
+    .signup-btn {
+      background: #b42531;
+    }
+    .signup-btn:hover {
+      background: #d12d40;
+    }
     .msg { 
       text-align: center; 
       color: #952222; 
       margin-bottom: 13px;
       min-height: 20px;
-      font-size: 0.9em;
+      font-size: 0.95em;
     }
     .msg.success {
       color: #059669;
@@ -99,7 +111,10 @@
       >
       
       <div class="msg" id="msg"></div>
-      <button type="submit" id="loginBtn">Login</button>
+      <div class="btn-row">
+        <button type="submit" id="loginBtn">Login for existing users</button>
+        <button type="button" class="signup-btn" onclick="window.location.href='signup.html';">Signup for new users</button>
+      </div>
     </form>
   </div>
 
@@ -162,7 +177,7 @@
           msg.textContent = data.error || "Invalid credentials";
           msg.className = "msg";
           loginBtn.disabled = false;
-          loginBtn.textContent = "Login";
+          loginBtn.textContent = "Login for existing users";
         }
       } catch (error) {
         // Network or server error
@@ -170,7 +185,7 @@
         msg.textContent = "Connection error. Please try again.";
         msg.className = "msg";
         loginBtn.disabled = false;
-        loginBtn.textContent = "Login";
+        loginBtn.textContent = "Login for existing users";
       }
     }
 
