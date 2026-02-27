@@ -1,87 +1,38 @@
 import express from "express";
+import OpenAI from "openai";
 
 const app = express();
 app.use(express.json());
 
-// ======= Mock /ask route (for testing without API key) =======
-app.post("/ask", async (req, res) => {
-  const question = req.body.question || "No question provided";
-  // Simulate AI thinking delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  res.json({
-    answer: `📝 Mock answer for: "${question}". The real API response will appear here once your key is active.`
-  });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ======= Homepage =======
 app.get("/", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Tax Kaki AI</title>
-        <style>
-          body { font-family: Arial; padding: 40px; background: #f9f9f9; }
-          #q { width: 300px; padding: 8px; }
-          #askBtn { padding: 8px 12px; margin-left: 5px; }
-          .chat-bubble { 
-            background: #e0f7fa; 
-            padding: 10px; 
-            border-radius: 8px; 
-            margin: 10px 0;
-          }
-          #result { margin-top: 20px; }
-        </style>
-      </head>
-      <body>
-        <h2>Tax Kaki AI Test Page</h2>
-        <input id="q" type="text" placeholder="Ask tax question" />
-        <button id="askBtn">Ask</button>
-        <div id="result"></div>
-
-        <script>
-          const btn = document.getElementById('askBtn');
-          const input = document.getElementById('q');
-          const resultDiv = document.getElementById('result');
-
-          btn.onclick = async () => {
-            const question = input.value.trim();
-            if (!question) return alert("Please enter a question!");
-
-            // Show loading
-            const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble';
-            bubble.innerText = '💭 Thinking...';
-            resultDiv.appendChild(bubble);
-
-            try {
-              const res = await fetch("/ask", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question })
-              });
-              const data = await res.json();
-
-              bubble.innerText = `🤖 ${data.answer}`;
-              input.value = "";
-            } catch (err) {
-              bubble.innerText = `⚠️ Error: ${err.message}`;
-            }
-
-            // Scroll to bottom
-            resultDiv.scrollTop = resultDiv.scrollHeight;
-          };
-        </script>
-      </body>
-    </html>
-  `);
+  res.send("Tax Kaki AI backend is running.");
 });
 
-// ======= Test route =======
-app.get("/test", (req, res) => {
-  res.send("Test route working");
+app.post("/ask", async (req, res) => {
+  try {
+    const { question } = req.body;
+    if (!question) {
+      return res.status(400).json({ error: "Question field is required." });
+    }
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are an expert Indian income tax assistant specializing in defence personnel." },
+        { role: "user", content: question }
+      ]
+    });
+    res.json({ answer: completion.choices[0].message.content });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "OpenAI error" });
+  }
 });
 
-// ======= Start server =======
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on port", PORT));
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
