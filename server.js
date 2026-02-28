@@ -29,6 +29,66 @@ app.post("/login", async (req, res) => {
   }
 
   try {
+    const doc = new GoogleSpreadsheet(SHEET_ID);
+    
+    await doc.useServiceAccountAuth({
+      client_email: CLIENT_EMAIL,
+      private_key: PRIVATE_KEY,
+    });
+
+    await doc.loadInfo();
+    const sheet = doc.sheetsByIndex[0];
+    const rows = await sheet.getRows();
+
+    // IMPROVED: Case-insensitive PAN matching
+    const user = rows.find(r => {
+      const sheetPAN = String(r.get('Your PAN - T') || '').trim().toUpperCase();
+      const inputPAN = String(pan || '').trim().toUpperCase();
+      return sheetPAN === inputPAN;
+    });
+
+    if (!user) {
+      return res.status(403).json({ error: "PAN not found" });
+    }
+
+    // IMPROVED: Handle PIN as string, trim spaces
+    const sheetPIN = String(user.get('Set your 4-dig') || '').trim();
+    const inputPIN = String(pin || '').trim();
+
+    if (sheetPIN !== inputPIN) {
+      return res.status(403).json({ error: "Invalid PIN" });
+    }
+
+    // IMPROVED: Case-insensitive activation status
+    const activationStatus = String(user.get('Activation Status') || '').trim().toLowerCase();
+    if (activationStatus !== "active") {
+      return res.status(403).json({ error: "Inactive user" });
+    }
+
+    // Check expiry date if exists
+    const expiryDateValue = user.get('Expiry Date');
+    if (expiryDateValue) {
+      const expiry = new Date(expiryDateValue);
+      const now = new Date();
+      if (expiry < now) {
+        return res.status(403).json({ error: "Account expired" });
+      }
+    }
+
+    // Login successful
+    res.json({ 
+      status: "ok", 
+      pan: pan.trim().toUpperCase(),
+      message: "Login successful" 
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+  try {
     // Connect to Google Sheet
     const doc = new GoogleSpreadsheet(SHEET_ID);
     
