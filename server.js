@@ -3,6 +3,13 @@ import OpenAI from "openai";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
 
+import fs from "fs";
+
+// Load Google service account JSON from Render Secret File
+const saJsonRaw = fs.readFileSync("/etc/secrets/taxkaki-backend-697c8cc8baff.json", "utf8"); // use your actual file name
+const saCredentials = JSON.parse(saJsonRaw);
+const SHEET_ID = process.env.GOOGLE_SHEET_ID || "1Y2h0SK4a68IDPmrZcadco8st6QtEufhzfMoJu8VY2MQ";
+
 const app = express();
 app.use(express.json());
 app.use(express.static("public"));
@@ -13,9 +20,12 @@ const openai = new OpenAI({
 });
 
 // Google Sheets Setup - Using Environment Variables (SECURE for production)
-const SHEET_ID = process.env.GOOGLE_SHEET_ID || "1Y2h0SK4a68IDPmrZcadco8st6QtEufhzfMoJu8VY2MQ";
-const CLIENT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+const SHEET_ID = "1Y2h0SK4a68IDPmrZcadco8st6QtEufhzfMoJu8VY2MQ";
+import fs from "fs";
+
+// At the top, after imports, load credentials:
+const saJsonRaw = fs.readFileSync("/etc/secrets/taxkaki-backend-697c8cc8baff.json", "utf8");
+const saCredentials = JSON.parse(saJsonRaw);
 
 app.get("/", (req, res) => {
   res.send("Tax Kaki AI backend is running.");
@@ -32,10 +42,10 @@ app.post("/login", async (req, res) => {
   try {
     // Initialize Google Sheets authentication
     const serviceAccountAuth = new JWT({
-      email: CLIENT_EMAIL,
-      key: PRIVATE_KEY,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+  email: saCredentials.client_email,
+  key: saCredentials.private_key,
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
 
     const doc = new GoogleSpreadsheet(SHEET_ID, serviceAccountAuth);
     await doc.loadInfo();
