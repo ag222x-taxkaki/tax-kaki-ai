@@ -24,11 +24,7 @@ app.get("/", (req, res) => {
 // Login Endpoint - Uses COLUMN INDEX (stable, won't break with form changes)
 app.post("/login", async (req, res) => {
   const { pan, pin } = req.body;
-  console.log("Login attempt - input PAN:", pan, "input PIN:", pin);
-rows.forEach((r, idx) => {
-  console.log(`Row ${idx}: PAN: [${r._rawData[1]}] PIN: [${r._rawData[2]}] STATUS: [${r._rawData[7]}] EXPIRY: [${r._rawData[8]}]`);
-});
-  
+    
   if (!pan || !pin) {
     return res.status(400).json({ error: "PAN and PIN required" });
   }
@@ -47,6 +43,11 @@ rows.forEach((r, idx) => {
     const sheet = doc.sheetsByIndex[0]; // First sheet tab
     const rows = await sheet.getRows();
 
+    console.log("Login attempt - input PAN:", pan, "input PIN:", pin);
+rows.forEach((r, idx) => {
+  console.log(`Row ${idx}: PAN: [${r._rawData[1]}] PIN: [${r._rawData[2]}] STATUS: [${r._rawData[7]}] EXPIRY: [${r._rawData[8]}]`);
+});
+    
     // Column mapping (based on your Sheet structure):
     // Column A (index 0) = Timestamp
     // Column B (index 1) = PAN
