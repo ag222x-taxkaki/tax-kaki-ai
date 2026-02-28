@@ -33,11 +33,44 @@
       .container { padding: 5px 2px; border-radius: 0; box-shadow: none; }
       iframe { height: 1400px; }
     }
+    .header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.header-row h2 {
+  margin: 0;
+  font-size: 1.45em;
+  color: #002b5c;
+}
+.back-btn {
+  background: #002b5c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-size: 1em;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.back-btn:hover {
+  background: #004080;
+}
+@media (max-width: 600px) {
+  .header-row { flex-direction: column; align-items: stretch; gap: 12px;}
+  .header-row h2, .back-btn { text-align: left; }
+}
+
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Sign Up for Tax Kaki AI</h2>
+    <div class="header-row">
+  <h2>Sign Up for Tax Kaki AI</h2>
+  <button class="back-btn" onclick="window.location.href='login.html';">Back to Login page</button>
+</div>
     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdd9RwPDLd5mfs3isCaSbfuibwX5Fb9hA25bEz71asqTxTfGQ/viewform?embedded=true" width="640" height="1467" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
   </div>
 </body>
