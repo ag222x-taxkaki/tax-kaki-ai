@@ -2,7 +2,6 @@ import express from "express";
 import OpenAI from "openai";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
-
 import fs from "fs";
 
 // Load Google service account JSON from Render Secret File
@@ -18,10 +17,6 @@ app.use(express.static("public"));
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-// Google Sheets Setup - Using Environment Variables (SECURE for production)
-const SHEET_ID = "1Y2h0SK4a68IDPmrZcadco8st6QtEufhzfMoJu8VY2MQ";
-import fs from "fs";
 
 // At the top, after imports, load credentials:
 const saJsonRaw = fs.readFileSync("/etc/secrets/taxkaki-backend-697c8cc8baff.json", "utf8");
