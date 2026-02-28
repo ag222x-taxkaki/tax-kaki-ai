@@ -41,19 +41,24 @@ app.post("/login", async (req, res) => {
     const sheet = doc.sheetsByIndex[0];
     const rows = await sheet.getRows();
 
-    // Find user by PAN (column name: "Your PAN - T")
-    const user = rows.find(r => 
-      String(r.get('Your PAN - T') || '').trim().toUpperCase() === pan.trim().toUpperCase()
-    );
+   // Find user by PAN - IMPROVED VERSION (case-insensitive, handles spaces)
+const user = rows.find(r => {
+  const sheetPAN = String(r.get('Your PAN - T') || '').trim().toUpperCase();
+  const inputPAN = String(pan || '').trim().toUpperCase();
+  return sheetPAN === inputPAN;
+});
 
     if (!user) {
       return res.status(403).json({ error: "PAN not found" });
     }
 
-    // Check PIN (column name: "Set your 4-dig")
-    if (String(user.get('Set your 4-dig') || '').trim() !== pin.trim()) {
-      return res.status(403).json({ error: "Invalid PIN" });
-    }
+    // Improved PIN check (handles spaces, converts to string)
+const sheetPIN = String(user.get('Set your 4-dig') || '').trim();
+const inputPIN = String(pin || '').trim();
+
+if (sheetPIN !== inputPIN) {
+  return res.status(403).json({ error: "Invalid PIN" });
+}
 
     // Check activation status (column name: "Activation Status")
     const activationStatus = String(user.get('Activation Status') || '').trim().toLowerCase();
