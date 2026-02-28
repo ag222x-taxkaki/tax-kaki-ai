@@ -24,6 +24,10 @@ app.get("/", (req, res) => {
 // Login Endpoint - Uses COLUMN INDEX (stable, won't break with form changes)
 app.post("/login", async (req, res) => {
   const { pan, pin } = req.body;
+  console.log("Login attempt - input PAN:", pan, "input PIN:", pin);
+rows.forEach((r, idx) => {
+  console.log(`Row ${idx}: PAN: [${r._rawData[1]}] PIN: [${r._rawData[2]}] STATUS: [${r._rawData[7]}] EXPIRY: [${r._rawData[8]}]`);
+});
   
   if (!pan || !pin) {
     return res.status(400).json({ error: "PAN and PIN required" });
@@ -60,6 +64,10 @@ app.post("/login", async (req, res) => {
       if (!sheetPan) return false;
       return String(sheetPan).trim().toUpperCase() === pan.trim().toUpperCase();
     });
+    console.log("User found?", !!user);
+if (!user) {
+  console.log("No matching PAN found for:", pan);
+}
 
     if (!user) {
       return res.status(403).json({ error: "PAN not found" });
