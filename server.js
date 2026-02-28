@@ -18,10 +18,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// At the top, after imports, load credentials:
-const saJsonRaw = fs.readFileSync("/etc/secrets/taxkaki-backend-697c8cc8baff.json", "utf8");
-const saCredentials = JSON.parse(saJsonRaw);
-
 app.get("/", (req, res) => {
   res.send("Tax Kaki AI backend is running.");
 });
