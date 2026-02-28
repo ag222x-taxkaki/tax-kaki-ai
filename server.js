@@ -91,19 +91,27 @@ if (!user) {
 
 if (expiryStr && String(expiryStr).trim()) {
   try {
-    const [day, month, year] = String(expiryStr).trim().split('/');
-    if (!day || !month || !year || day.length > 2 || month.length > 2 || year.length !== 4) {
-      // Block access if format is NOT dd/mm/yyyy
+    // Only accept dd/mm/yyyy (force leading zero allowed)
+    const match = String(expiryStr).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) {
+      // Block all other formats!
       return res.status(403).json({ error: "Account expired: invalid expiry date format" });
     }
-    const expiry = new Date(`${year}-${month}-${day}`);
+    const [ , day, month, year ] = match;
+    if (
+      Number(day) < 1 || Number(day) > 31 ||
+      Number(month) < 1 || Number(month) > 12 ||
+      Number(year) < 2020 // optional: don't allow old years by typo
+    ) {
+      return res.status(403).json({ error: "Account expired: invalid expiry date value" });
+    }
+    const expiry = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     if (expiry < now) {
       return res.status(403).json({ error: "Account expired" });
     }
   } catch (dateError) {
-    // If parsing fails for ANY reason, block access
     return res.status(403).json({ error: "Account expired: invalid expiry date" });
   }
 }
