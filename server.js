@@ -1,6 +1,7 @@
 import express from "express";
 import OpenAI from "openai";
 import { GoogleSpreadsheet } from "google-spreadsheet";
+import { JWT } from "google-auth-library";
 
 const app = express();
 app.use(express.json());
@@ -20,7 +21,7 @@ app.get("/", (req, res) => {
   res.send("Tax Kaki AI backend is running.");
 });
 
-// Login Endpoint - Matches your Google Sheet structure
+// Login Endpoint - Uses COLUMN INDEX (stable, won't break with form changes)
 app.post("/login", async (req, res) => {
   const { pan, pin } = req.body;
   
@@ -29,123 +30,83 @@ app.post("/login", async (req, res) => {
   }
 
   try {
-    const doc = new GoogleSpreadsheet(SHEET_ID);
-    
-    await doc.useServiceAccountAuth({
-      client_email: CLIENT_EMAIL,
-      private_key: PRIVATE_KEY,
+    // Initialize Google Sheets authentication
+    const serviceAccountAuth = new JWT({
+      email: CLIENT_EMAIL,
+      key: PRIVATE_KEY,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
+    const doc = new GoogleSpreadsheet(SHEET_ID, serviceAccountAuth);
     await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
+    
+    const sheet = doc.sheetsByIndex[0]; // First sheet tab
     const rows = await sheet.getRows();
 
-    // IMPROVED: Case-insensitive PAN matching
+    // Column mapping (based on your Sheet structure):
+    // Column A (index 0) = Timestamp
+    // Column B (index 1) = PAN
+    // Column C (index 2) = PIN
+    // Column D (index 3) = Name
+    // Column E (index 4) = Mobile
+    // Column F (index 5) = QR Code
+    // Column G (index 6) = Referred by
+    // Column H (index 7) = Activation Status
+    // Column I (index 8) = Expiry Date
+
+    // Find user by PAN (case-insensitive)
     const user = rows.find(r => {
-      const sheetPAN = String(r.get('Your PAN - T') || '').trim().toUpperCase();
-      const inputPAN = String(pan || '').trim().toUpperCase();
-      return sheetPAN === inputPAN;
+      const sheetPan = r._rawData[1]; // Column B
+      if (!sheetPan) return false;
+      return String(sheetPan).trim().toUpperCase() === pan.trim().toUpperCase();
     });
 
     if (!user) {
       return res.status(403).json({ error: "PAN not found" });
     }
 
-    // IMPROVED: Handle PIN as string, trim spaces
-    const sheetPIN = String(user.get('Set your 4-dig') || '').trim();
-    const inputPIN = String(pin || '').trim();
-
-    if (sheetPIN !== inputPIN) {
+    // Check PIN (exact match)
+    const sheetPin = String(user._rawData[2] || '').trim(); // Column C
+    if (sheetPin !== pin.trim()) {
       return res.status(403).json({ error: "Invalid PIN" });
     }
 
-    // IMPROVED: Case-insensitive activation status
-    const activationStatus = String(user.get('Activation Status') || '').trim().toLowerCase();
-    if (activationStatus !== "active") {
-      return res.status(403).json({ error: "Inactive user" });
+    // Check Activation Status
+    const status = String(user._rawData[7] || '').trim().toLowerCase(); // Column H
+    if (status !== 'active') {
+      return res.status(403).json({ error: "Account not activated" });
     }
 
-    // Check expiry date if exists
-    const expiryDateValue = user.get('Expiry Date');
-    if (expiryDateValue) {
-      const expiry = new Date(expiryDateValue);
-      const now = new Date();
-      if (expiry < now) {
-        return res.status(403).json({ error: "Account expired" });
+    // Check Expiry Date (if present)
+    const expiryStr = user._rawData[8]; // Column I
+    if (expiryStr && String(expiryStr).trim()) {
+      try {
+        // Handle dd/mm/yyyy format
+        const expiryTrimmed = String(expiryStr).trim();
+        const [day, month, year] = expiryTrimmed.split('/');
+        const expiry = new Date(`${year}-${month}-${day}`);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Reset time to start of day
+        
+        if (expiry < now) {
+          return res.status(403).json({ error: "Account expired" });
+        }
+      } catch (dateError) {
+        console.error('Date parsing error:', dateError);
+        // Continue if date format is invalid (don't block login)
       }
     }
 
     // Login successful
     res.json({ 
       status: "ok", 
-      pan: pan.trim().toUpperCase(),
+      pan: pan.toUpperCase(),
       message: "Login successful" 
     });
 
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: "Login failed" });
-  }
-});
-
-  try {
-    // Connect to Google Sheet
-    const doc = new GoogleSpreadsheet(SHEET_ID);
-    
-    await doc.useServiceAccountAuth({
-      client_email: CLIENT_EMAIL,
-      private_key: PRIVATE_KEY,
-    });
-
-    await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
-    const rows = await sheet.getRows();
-
-   // Find user by PAN - IMPROVED VERSION (case-insensitive, handles spaces)
-const user = rows.find(r => {
-  const sheetPAN = String(r.get('Your PAN - T') || '').trim().toUpperCase();
-  const inputPAN = String(pan || '').trim().toUpperCase();
-  return sheetPAN === inputPAN;
-});
-
-    if (!user) {
-      return res.status(403).json({ error: "PAN not found" });
-    }
-
-    // Improved PIN check (handles spaces, converts to string)
-const sheetPIN = String(user.get('Set your 4-dig') || '').trim();
-const inputPIN = String(pin || '').trim();
-
-if (sheetPIN !== inputPIN) {
-  return res.status(403).json({ error: "Invalid PIN" });
-}
-
-    // Check activation status (column name: "Activation Status")
-    const activationStatus = String(user.get('Activation Status') || '').trim().toLowerCase();
-    if (activationStatus !== "active") {
-      return res.status(403).json({ error: "Inactive user" });
-    }
-
-    // Check expiry date if exists (column name: "Expiry Date")
-    const expiryDateValue = user.get('Expiry Date');
-    if (expiryDateValue) {
-      const expiry = new Date(expiryDateValue);
-      const now = new Date();
-      if (expiry < now) {
-        return res.status(403).json({ error: "Account expired" });
-      }
-    }
-
-    // Login successful
-    res.json({ 
-      status: "ok", 
-      pan: pan,
-      message: "Login successful" 
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: "Login failed" });
+    res.status(500).json({ error: "Login failed. Please try again." });
   }
 });
 
