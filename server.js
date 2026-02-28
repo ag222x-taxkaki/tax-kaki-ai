@@ -87,25 +87,26 @@ if (!user) {
       return res.status(403).json({ error: "Account not activated" });
     }
 
-    // Check Expiry Date (if present)
-    const expiryStr = user._rawData[8]; // Column I
-    if (expiryStr && String(expiryStr).trim()) {
-      try {
-        // Handle dd/mm/yyyy format
-        const expiryTrimmed = String(expiryStr).trim();
-        const [day, month, year] = expiryTrimmed.split('/');
-        const expiry = new Date(`${year}-${month}-${day}`);
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Reset time to start of day
-        
-        if (expiry < now) {
-          return res.status(403).json({ error: "Account expired" });
-        }
-      } catch (dateError) {
-        console.error('Date parsing error:', dateError);
-        // Continue if date format is invalid (don't block login)
-      }
+    const expiryStr = user._rawData[8]; // Column I: Expiry Date
+
+if (expiryStr && String(expiryStr).trim()) {
+  try {
+    const [day, month, year] = String(expiryStr).trim().split('/');
+    if (!day || !month || !year || day.length > 2 || month.length > 2 || year.length !== 4) {
+      // Block access if format is NOT dd/mm/yyyy
+      return res.status(403).json({ error: "Account expired: invalid expiry date format" });
     }
+    const expiry = new Date(`${year}-${month}-${day}`);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    if (expiry < now) {
+      return res.status(403).json({ error: "Account expired" });
+    }
+  } catch (dateError) {
+    // If parsing fails for ANY reason, block access
+    return res.status(403).json({ error: "Account expired: invalid expiry date" });
+  }
+}
 
     // Login successful
     res.json({ 
