@@ -24,7 +24,7 @@
 <body>
 <script>
 // Redirect to login if not logged in
-if(!localStorage.getItem("taxkaki-pan")){
+if (!localStorage.getItem("taxkaki-pan")) {
   window.location.href = "login.html";
 }
 </script>
@@ -54,7 +54,7 @@ if (!pan) window.location.href = "login.html";
 document.getElementById('pan-label').textContent = pan;
 
 const chatDiv = document.getElementById('chat');
-let chatHistory = []; // This will be loaded from the server
+let chatHistory = []; // Loaded from server at page load
 
 function renderChat() {
   chatDiv.innerHTML = '<div style="color:#789; font-size:15px; margin-bottom:17px;">Ask any Indian tax question below. Your conversation is always here when you return.</div>';
@@ -64,7 +64,7 @@ function renderChat() {
   chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
-// Load chat history for this PAN on page load (from your backend)
+// Load chat history for this PAN on page load
 async function loadChatHistory() {
   try {
     const response = await fetch('/chat-history?pan=' + encodeURIComponent(pan));
@@ -83,13 +83,15 @@ async function ask() {
   if (!question) return;
   input.value = '';
 
-  // Add user message to backend
-  chatHistory.push({role:'user', message: question});
+  // Add user message visually right away
+  chatHistory.push({ role:'user', message: question });
   renderChat();
+
+  // Save user message to backend
   try {
     await fetch('/chat-history', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pan, role: 'user', message: question })
     });
   } catch (e) {
@@ -98,14 +100,15 @@ async function ask() {
     return;
   }
 
-  // Add AI "thinking" message right away
+  // Add AI "thinking" message
   chatHistory.push({ role: 'ai', message: '<i>Thinking...</i>' });
   renderChat();
 
   try {
+    // Submit question to server with PAN for context
     const res = await fetch('/ask', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pan, question })
     });
     const data = await res.json();
@@ -116,12 +119,12 @@ async function ask() {
     // Save AI reply to backend
     await fetch('/chat-history', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pan, role: 'ai', message: aiReply })
     });
-  } catch(e) {
+  } catch (e) {
     chatHistory.pop();
-    chatHistory.push({role:'ai', message:'<span style="color:red">Server error. Please try again.</span>'});
+    chatHistory.push({ role: 'ai', message: '<span style="color:red">Server error. Please try again.</span>' });
     renderChat();
   }
 }
