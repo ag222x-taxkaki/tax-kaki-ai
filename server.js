@@ -4,10 +4,13 @@ import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
 import fs from "fs";
 
-// Load Google service account JSON from Render Secret File
-const saJsonRaw = fs.readFileSync("/etc/secrets/taxkaki-backend-697c8cc8baff.json", "utf8"); // use your actual file name
+// User Sheet (for login)
+const saJsonRaw = fs.readFileSync("/etc/secrets/taxkaki-backend-697c8cc8baff.json", "utf8");
 const saCredentials = JSON.parse(saJsonRaw);
+// Auth sheet (keep your old one for user login)
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || "1Y2h0SK4a68IDPmrZcadco8st6QtEufhzfMoJu8VY2MQ";
+// Chat sheet (your new chat history sheet)
+const CHAT_SHEET_ID = "1E1bo1a2Iv9e9RJKauJfwMY3kLHFpJ7Sx8t92bmjpsCs";
 
 const app = express();
 app.use(express.json());
@@ -22,101 +25,75 @@ app.get("/", (req, res) => {
   res.send("Tax Kaki AI backend is running.");
 });
 
-// Login Endpoint - Uses COLUMN INDEX (stable, won't break with form changes)
+// ===== LOGIN ENDPOINT =====
 app.post("/login", async (req, res) => {
   const { pan, pin } = req.body;
-    
   if (!pan || !pin) {
     return res.status(400).json({ error: "PAN and PIN required" });
   }
 
   try {
-    // Initialize Google Sheets authentication
     const serviceAccountAuth = new JWT({
-  email: saCredentials.client_email,
-  key: saCredentials.private_key,
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+      email: saCredentials.client_email,
+      key: saCredentials.private_key,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
 
     const doc = new GoogleSpreadsheet(SHEET_ID, serviceAccountAuth);
     await doc.loadInfo();
-    
     const sheet = doc.sheetsByIndex[0]; // First sheet tab
     const rows = await sheet.getRows();
 
-    console.log("Login attempt - input PAN:", pan, "input PIN:", pin);
-rows.forEach((r, idx) => {
-  console.log(`Row ${idx}: PAN: [${r._rawData[1]}] PIN: [${r._rawData[2]}] STATUS: [${r._rawData[7]}] EXPIRY: [${r._rawData[8]}]`);
-});
-    
-    // Column mapping (based on your Sheet structure):
-    // Column A (index 0) = Timestamp
-    // Column B (index 1) = PAN
-    // Column C (index 2) = PIN
-    // Column D (index 3) = Name
-    // Column E (index 4) = Mobile
-    // Column F (index 5) = QR Code
-    // Column G (index 6) = Referred by
-    // Column H (index 7) = Activation Status
-    // Column I (index 8) = Expiry Date
-
     // Find user by PAN (case-insensitive)
     const user = rows.find(r => {
-      const sheetPan = r._rawData[1]; // Column B
+      const sheetPan = r._rawData[1];
       if (!sheetPan) return false;
       return String(sheetPan).trim().toUpperCase() === pan.trim().toUpperCase();
     });
-    console.log("User found?", !!user);
-if (!user) {
-  console.log("No matching PAN found for:", pan);
-}
 
     if (!user) {
       return res.status(403).json({ error: "PAN not found" });
     }
 
     // Check PIN (exact match)
-    const sheetPin = String(user._rawData[2] || '').trim(); // Column C
+    const sheetPin = String(user._rawData[2] || '').trim();
     if (sheetPin !== pin.trim()) {
       return res.status(403).json({ error: "Invalid PIN" });
     }
 
     // Check Activation Status
-    const status = String(user._rawData[7] || '').trim().toLowerCase(); // Column H
+    const status = String(user._rawData[7] || '').trim().toLowerCase();
     if (status !== 'active') {
       return res.status(403).json({ error: "Account not activated" });
     }
 
-    const expiryStr = user._rawData[8]; // Column I: Expiry Date
+    // Expiry Check
+    const expiryStr = user._rawData[8];
+    if (expiryStr && String(expiryStr).trim()) {
+      try {
+        const match = String(expiryStr).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!match) {
+          return res.status(403).json({ error: "Account expired: invalid expiry date format" });
+        }
+        const [ , day, month, year ] = match;
+        if (
+          Number(day) < 1 || Number(day) > 31 ||
+          Number(month) < 1 || Number(month) > 12 ||
+          Number(year) < 2020
+        ) {
+          return res.status(403).json({ error: "Account expired: invalid expiry date value" });
+        }
+        const expiry = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        if (expiry < now) {
+          return res.status(403).json({ error: "Account expired" });
+        }
+      } catch {
+        return res.status(403).json({ error: "Account expired: invalid expiry date" });
+      }
+    }
 
-if (expiryStr && String(expiryStr).trim()) {
-  try {
-    // Only accept dd/mm/yyyy (force leading zero allowed)
-    const match = String(expiryStr).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!match) {
-      // Block all other formats!
-      return res.status(403).json({ error: "Account expired: invalid expiry date format" });
-    }
-    const [ , day, month, year ] = match;
-    if (
-      Number(day) < 1 || Number(day) > 31 ||
-      Number(month) < 1 || Number(month) > 12 ||
-      Number(year) < 2020 // optional: don't allow old years by typo
-    ) {
-      return res.status(403).json({ error: "Account expired: invalid expiry date value" });
-    }
-    const expiry = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    if (expiry < now) {
-      return res.status(403).json({ error: "Account expired" });
-    }
-  } catch (dateError) {
-    return res.status(403).json({ error: "Account expired: invalid expiry date" });
-  }
-}
-
-    // Login successful
     res.json({ 
       status: "ok", 
       pan: pan.toUpperCase(),
@@ -129,14 +106,14 @@ if (expiryStr && String(expiryStr).trim()) {
   }
 });
 
-// AI Chat Endpoint
+// ===== AI CHAT ENDPOINT =====
 app.post("/ask", async (req, res) => {
   try {
     const { question } = req.body;
     if (!question) {
       return res.status(400).json({ error: "Question field is required." });
     }
-    
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -144,7 +121,7 @@ app.post("/ask", async (req, res) => {
         { role: "user", content: question }
       ]
     });
-    
+
     res.json({ answer: completion.choices[0].message.content });
   } catch (error) {
     console.error(error);
@@ -152,6 +129,68 @@ app.post("/ask", async (req, res) => {
   }
 });
 
+// ========== SHARED CHAT HISTORY ENDPOINTS (NEW) ==========
+
+// Helper function to get chat sheet
+function getChatSheetDoc() {
+  return new GoogleSpreadsheet(CHAT_SHEET_ID, new JWT({
+    email: saCredentials.client_email,
+    key: saCredentials.private_key,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  }));
+}
+
+// GET /chat-history?pan=XXXXX
+app.get("/chat-history", async (req, res) => {
+  try {
+    const pan = req.query.pan;
+    if (!pan) return res.status(400).json({ error: "PAN is required" });
+
+    const doc = getChatSheetDoc();
+    await doc.loadInfo();
+    const sheet = doc.sheetsByIndex[0]; // Use Sheet1
+    const rows = await sheet.getRows();
+    const history = rows
+      .filter(r => (r._rawData[1] || "").trim().toUpperCase() === pan.trim().toUpperCase())
+      .map(r => ({
+        timestamp: r._rawData[0],
+        pan: r._rawData[1],
+        role: r._rawData[2],
+        message: r._rawData[3],
+      }));
+    res.json({ history });
+  } catch (error) {
+    console.error("Chat history fetch error:", error);
+    res.status(500).json({ error: "Failed to load history" });
+  }
+});
+
+// POST /chat-history   { pan, role, message }
+app.post("/chat-history", async (req, res) => {
+  try {
+    const { pan, role, message } = req.body;
+    if (!pan || !role || !message) {
+      return res.status(400).json({ error: "Missing pan, role or message" });
+    }
+
+    const doc = getChatSheetDoc();
+    await doc.loadInfo();
+    const sheet = doc.sheetsByIndex[0]; // Use Sheet1
+    await sheet.addRow([
+      new Date().toISOString(),
+      pan,
+      role,
+      message
+    ]);
+
+    res.json({ status: "ok" });
+  } catch (error) {
+    console.error("Chat history save error:", error);
+    res.status(500).json({ error: "Failed to save message" });
+  }
+});
+
+// ========== SERVER LISTEN ==========
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
