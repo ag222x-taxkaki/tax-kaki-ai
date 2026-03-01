@@ -7,9 +7,9 @@ import fs from "fs";
 // User Sheet (for login)
 const saJsonRaw = fs.readFileSync("/etc/secrets/taxkaki-backend-697c8cc8baff.json", "utf8");
 const saCredentials = JSON.parse(saJsonRaw);
-// Auth sheet (keep your old one for user login)
+// Auth sheet (user login and expiry)
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || "1Y2h0SK4a68IDPmrZcadco8st6QtEufhzfMoJu8VY2MQ";
-// Chat sheet (your new chat history sheet)
+// Chat history sheet
 const CHAT_SHEET_ID = "1E1bo1a2Iv9e9RJKauJfwMY3kLHFpJ7Sx8t92bmjpsCs";
 
 const app = express();
@@ -41,7 +41,7 @@ app.post("/login", async (req, res) => {
 
     const doc = new GoogleSpreadsheet(SHEET_ID, serviceAccountAuth);
     await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0]; // First sheet tab
+    const sheet = doc.sheetsByIndex[0];
     const rows = await sheet.getRows();
 
     // Find user by PAN (case-insensitive)
@@ -55,19 +55,19 @@ app.post("/login", async (req, res) => {
       return res.status(403).json({ error: "PAN not found" });
     }
 
-    // Check PIN (exact match)
+    // Check PIN
     const sheetPin = String(user._rawData[2] || '').trim();
     if (sheetPin !== pin.trim()) {
       return res.status(403).json({ error: "Invalid PIN" });
     }
 
-    // Check Activation Status
+    // Activation
     const status = String(user._rawData[7] || '').trim().toLowerCase();
     if (status !== 'active') {
       return res.status(403).json({ error: "Account not activated" });
     }
 
-    // Expiry Check
+    // Expiry
     const expiryStr = user._rawData[8];
     if (expiryStr && String(expiryStr).trim()) {
       try {
@@ -94,10 +94,10 @@ app.post("/login", async (req, res) => {
       }
     }
 
-    res.json({ 
-      status: "ok", 
+    res.json({
+      status: "ok",
       pan: pan.toUpperCase(),
-      message: "Login successful" 
+      message: "Login successful"
     });
 
   } catch (error) {
@@ -106,20 +106,45 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// ===== AI CHAT ENDPOINT =====
+// ===== AI CHAT ENDPOINT (NOW WITH TRUE CONTEXT) =====
 app.post("/ask", async (req, res) => {
   try {
-    const { question } = req.body;
-    if (!question) {
-      return res.status(400).json({ error: "Question field is required." });
+    const { question, pan } = req.body;
+    if (!question || !pan) {
+      return res.status(400).json({ error: "PAN and question are required." });
     }
 
+    // 1. Fetch last N messages for this PAN from your chat history sheet
+    const chatDoc = getChatSheetDoc(); // Uses your CHAT_SHEET_ID and credentials
+    await chatDoc.loadInfo();
+    const chatSheet = chatDoc.sheetsByIndex[0]; // "Sheet1"
+    const allRows = await chatSheet.getRows();
+
+    // 2. Extract this PAN's chat history only; sort by timestamp
+    const history = allRows
+      .filter(r => (r._rawData[1] || "").trim().toUpperCase() === pan.trim().toUpperCase())
+      .map(r => ({
+        role: ((r._rawData[2] || '').toLowerCase() === "user") ? "user" : "assistant", // OpenAI expects "assistant"
+        content: r._rawData[3] || "",
+        timestamp: r._rawData[0] || ""
+      }))
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // 3. Only most recent CONTEXT_MSGS (set as needed for context, cost, prompt size)
+    const CONTEXT_MSGS = 12;
+    const priorMessages = history.slice(-CONTEXT_MSGS);
+
+    // 4. Build the message array for OpenAI:
+    const openaiMsgs = [
+      { role: "system", content: "You are an expert Indian income tax assistant specializing in defence personnel." },
+      ...priorMessages,
+      { role: "user", content: question }
+    ];
+
+    // 5. OpenAI call with full context
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [
-        { role: "system", content: "You are an expert Indian income tax assistant specializing in defence personnel." },
-        { role: "user", content: question }
-      ]
+      messages: openaiMsgs
     });
 
     res.json({ answer: completion.choices[0].message.content });
@@ -129,7 +154,7 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-// ========== SHARED CHAT HISTORY ENDPOINTS (NEW) ==========
+// ========== SHARED CHAT HISTORY ENDPOINTS ==========
 
 // Helper function to get chat sheet
 function getChatSheetDoc() {
